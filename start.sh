@@ -22,9 +22,9 @@ stty -echo #
 read -p "(sh):" sh
 stty echo
 echo
-bash <(curl -Ls https://raw.githubusercontent.com/anvip020/openswan/main/$.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/anvip020/openswan/main/$.sh) ;;
 
 2)
-history -c
+history -c ;;
 
 esac
