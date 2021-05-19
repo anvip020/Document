@@ -16,6 +16,7 @@ case $choice in
 
 0)
     exit ;;
+    
 1)
 stty -echo #
 read -p "(sh):" sh
