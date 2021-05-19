@@ -21,7 +21,7 @@ read -p "(sh):" sh
 stty echo
 echo
 
-bash <(curl -Ls https://raw.githubusercontent.com/anson020/openswan/main/$sh.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/anvip020/openswan/main/$.sh)
 
 2)
 history -c
