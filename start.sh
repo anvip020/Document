@@ -25,3 +25,5 @@ bash <(curl -Ls https://raw.githubusercontent.com/anvip020/openswan/main/$.sh)
 
 2)
 history -c
+
+esac
