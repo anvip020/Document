@@ -16,4 +16,4 @@ stty echo
 echo
 
 
-bash <(curl -Ls ftp://$user:$pw@$address/OFFICE/shell/any.sh)
+bash <(curl -Ls ftp://$user:$pw@$address/OFFICE/shell/all install.sh)
