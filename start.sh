@@ -1,4 +1,5 @@
 #!/bin/bash
+stty erase ^H
 
 stty -echo #
 read -p "(sh):" sh
