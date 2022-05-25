@@ -17,4 +17,4 @@ stty echo
 echo
 
 
-bash <(curl -Ls ftp://$user:$pw@$address/OFFICE/shell/fancyqube/fancyqube.sh)
+bash <(curl -Ls ftp://$user:$pw@$address/OFFICE/shell/fancyqube/default.sh)
