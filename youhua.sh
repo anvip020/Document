@@ -7,6 +7,7 @@ echo '
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 
+net.ipv4.ip_forward = 1
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.tcp_no_metrics_save = 1
 net.ipv4.tcp_ecn = 0
