@@ -15,7 +15,6 @@ if [[ "$ACTION" != "1" && "$ACTION" != "2" ]]; then
   exit 1
 fi
 
-wg
 
 # 输入网卡名
 read -p "请输入要限速的网卡名（例如 wg00）: " DEV
