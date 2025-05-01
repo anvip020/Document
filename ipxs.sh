@@ -51,10 +51,11 @@ if [ "$OPTION" == "1" ]; then
         echo "✅ 已检测到 HTB 根结构，将追加规则。"
     fi
 
-    # 逐个添加 IP 和速率
+    # 添加限速规则
     while true; do
         read -rp "请输入源IP或CIDR（如 192.168.1.10 或 10.0.0.0/24），输入 done 完成: " IP
         if [ "$IP" == "done" ]; then
+            echo "❗ 操作已完成，退出添加模式。"
             break
         fi
 
@@ -97,6 +98,4 @@ if [ "$OPTION" == "1" ]; then
 
         echo "✅ 已为 $IP 设置限速 ${RATE_MBIT}mbit（类ID: 1:$RAND_ID）"
     done
-
-    echo "❗ 操作已完成，退出添加模式。"
 fi
