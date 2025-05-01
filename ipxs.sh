@@ -54,7 +54,9 @@ if [ "$OPTION" == "1" ]; then
     # 逐个添加 IP 和速率
     while true; do
         read -rp "请输入源IP或CIDR（如 192.168.1.10 或 10.0.0.0/24），输入 done 完成: " IP
-        [ "$IP" == "done" ] && break
+        if [ "$IP" == "done" ]; then
+            break
+        fi
 
         read -rp "请输入该IP的上传限速（如 1mbit、500kbit），直接输入数字（如 30）表示 30mbit: " RATE
 
@@ -95,4 +97,6 @@ if [ "$OPTION" == "1" ]; then
 
         echo "✅ 已为 $IP 设置限速 ${RATE_MBIT}mbit（类ID: 1:$RAND_ID）"
     done
+
+    echo "❗ 操作已完成，退出添加模式。"
 fi
