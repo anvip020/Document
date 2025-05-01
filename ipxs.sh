@@ -1,22 +1,24 @@
 #!/bin/bash
 
-# 检查依赖
-if ! command -v ipcalc &>/dev/null; then
-    echo "❗ 需要安装 ipcalc：sudo apt install ipcalc"
-    exit 1
-fi
-
-# 将输入的单位转换为 Mbit
+# 转换单位为 Mbit
 convert_to_mbit() {
     local input="$1"
     local value="${input//[^0-9.]/}"  # 提取数值部分
     local unit="${input//[0-9.]}"    # 提取单位部分
 
+    # 如果没有单位，则默认使用 mbit
+    if [ -z "$unit" ]; then
+        unit="mbit"
+    fi
+
+    # 统一转换为小写
+    unit=$(echo "$unit" | tr '[:upper:]' '[:lower:]')
+
     case "$unit" in
-        kbit|Kbit|Kb|KB)  # Kbit -> Mbit
+        kbit|kb|k)  # kbit -> Mbit
             echo "$(echo "$value / 1024" | bc -l)"
             ;;
-        mbit|Mbit|Mb|MB)  # Mbit 保持不变
+        mbit|mb|m)  # mbit 保持不变
             echo "$value"
             ;;
         *)
@@ -26,6 +28,7 @@ convert_to_mbit() {
     esac
 }
 
+# 用户输入选项和配置
 echo "请选择操作："
 echo "1) 添加限速规则（支持叠加 + 每IP限速，存在则替换）"
 echo "2) 查询限速规则"
@@ -53,7 +56,12 @@ if [ "$OPTION" == "1" ]; then
         read -rp "请输入源IP或CIDR（如 192.168.1.10 或 10.0.0.0/24），输入 done 完成: " IP
         [ "$IP" == "done" ] && break
 
-        read -rp "请输入该IP的上传限速（如 1mbit、500kbit）: " RATE
+        read -rp "请输入该IP的上传限速（如 1mbit、500kbit），直接输入数字（如 30）表示 30mbit: " RATE
+
+        # 如果没有单位，默认单位为 mbit
+        if [[ ! "$RATE" =~ [a-zA-Z] ]]; then
+            RATE="${RATE}mbit"
+        fi
 
         # 转换输入的限速单位为 Mbit
         RATE_MBIT=$(convert_to_mbit "$RATE")
@@ -87,59 +95,4 @@ if [ "$OPTION" == "1" ]; then
 
         echo "✅ 已为 $IP 设置限速 ${RATE_MBIT}mbit（类ID: 1:$RAND_ID）"
     done
-
-# =========================
-# 查询当前限速规则
-# =========================
-elif [ "$OPTION" == "2" ]; then
-    read -rp "请输入要查询的出口网卡名（如 eth0）: " IFACE
-
-    # 获取当前限速规则（包括 IP 和 flowid）
-    echo "📋 当前限速规则列表："
-    tc filter show dev "$IFACE" | grep -B 1 "match ip src" | while read -r line; do
-        if [[ "$line" == *"flowid"* ]]; then
-            FLOWID=$(echo "$line" | awk '{print $2}')
-            IP=$(echo "$line" | grep -oP 'src \K[0-9.]+')
-            echo "IP: $IP, 类ID: $FLOWID"
-        fi
-    done
-
-# =========================
-# 删除限速规则
-# =========================
-elif [ "$OPTION" == "3" ]; then
-    read -rp "请输入要删除限速规则的出口网卡名（如 eth0）: " IFACE
-    
-    # 获取所有现有的过滤规则并显示
-    FILTERS=$(tc filter show dev "$IFACE" | grep -B 1 "match ip src" | grep -o 'flowid 1:[0-9]*' | awk '{print $2}')
-    IPS=$(tc filter show dev "$IFACE" | grep -B 1 "match ip src" | grep -oP 'src \K[0-9.]+')
-
-    if [ -z "$FILTERS" ]; then
-        echo "❗ 没有找到限速规则。"
-        exit 1
-    fi
-
-    echo "📋 当前限速规则列表："
-    paste <(echo "$IPS") <(echo "$FILTERS")  # 显示 IP 和 flowid 的对应关系
-    echo "请选择要删除的规则，输入 IP 地址（如 192.168.1.100）:"
-    read -rp "请输入要删除的源IP地址: " IP_TO_DELETE
-
-    # 找到对应的 flowid
-    FLOWID_TO_DELETE=$(echo "$FILTERS" | grep -n "$IP_TO_DELETE" | cut -d: -f1)
-    if [ -z "$FLOWID_TO_DELETE" ]; then
-        echo "❗ 未找到匹配的 IP 地址：$IP_TO_DELETE"
-        exit 1
-    fi
-
-    FLOWID_TO_DELETE=$(echo "$FILTERS" | sed -n "${FLOWID_TO_DELETE}p")
-    
-    # 删除指定的过滤规则和类
-    tc filter del dev "$IFACE" protocol ip parent 1:0 prio 1 u32 match ip src "$IP_TO_DELETE" flowid "$FLOWID_TO_DELETE"
-    tc class del dev "$IFACE" classid "$FLOWID_TO_DELETE"
-
-    echo "✅ 类ID $FLOWID_TO_DELETE 和 IP 地址 $IP_TO_DELETE 的限速规则已删除。"
-
-else
-    echo "❌ 无效选项，请输入 1、2 或 3。"
-    exit 1
 fi
