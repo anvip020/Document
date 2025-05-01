@@ -88,14 +88,4 @@ if [ "$OPTION" == "1" ]; then
         # 添加匹配规则
         if [[ "$IP" =~ "/" ]]; then
             IPADDR=$(echo "$IP" | cut -d/ -f1)
-            NETMASK=$(ipcalc -m "$IP" | awk '{print $2}')
-            tc filter add dev "$IFACE" protocol ip parent 1:0 prio 1 u32 \
-                match ip src "$IPADDR"/"$NETMASK" flowid 1:$RAND_ID
-        else
-            tc filter add dev "$IFACE" protocol ip parent 1:0 prio 1 u32 \
-                match ip src "$IP" flowid 1:$RAND_ID
-        fi
-
-        echo "✅ 已为 $IP 设置限速 ${RATE_MBIT}mbit（类ID: 1:$RAND_ID）"
-    done
-fi
+            NETMASK=$(ipcalc -m "$
