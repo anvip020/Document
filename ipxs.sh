@@ -88,4 +88,54 @@ if [ "$OPTION" == "1" ]; then
         # 添加匹配规则
         if [[ "$IP" =~ "/" ]]; then
             IPADDR=$(echo "$IP" | cut -d/ -f1)
-            NETMASK=$(ipcalc -m "$
+            NETMASK=$(ipcalc -m "$IP" | awk '{print $2}')
+            tc filter add dev "$IFACE" protocol ip parent 1:0 prio 1 u32 \
+                match ip src "$IPADDR"/"$NETMASK" flowid 1:$RAND_ID
+        else
+            tc filter add dev "$IFACE" protocol ip parent 1:0 prio 1 u32 \
+                match ip src "$IP" flowid 1:$RAND_ID
+        fi
+
+        echo "✅ 已为 $IP 设置限速 ${RATE_MBIT}mbit（类ID: 1:$RAND_ID）"
+    done
+fi
+
+# =========================
+# 查询限速规则
+# =========================
+if [ "$OPTION" == "2" ]; then
+    read -rp "请输入要查询限速规则的网卡名（如 eth0）: " IFACE
+    # 查询已配置的限速规则
+    echo "当前限速规则："
+    tc -s qdisc show dev "$IFACE" 2>/dev/null
+    tc -s class show dev "$IFACE" 2>/dev/null
+    tc filter show dev "$IFACE" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "❗ 没有找到限速规则。"
+    fi
+fi
+
+# =========================
+# 删除限速规则
+# =========================
+if [ "$OPTION" == "3" ]; then
+    read -rp "请输入要删除限速规则的网卡名（如 eth0）: " IFACE
+    echo "正在列出当前的限速规则..."
+    tc filter show dev "$IFACE" 2>/dev/null
+
+    read -rp "请输入要删除的 IP 或 CIDR（例如：10.0.0.3 或 10.0.0.0/24），输入 done 完成: " IP
+    if [ "$IP" == "done" ]; then
+        echo "❗ 操作已完成，退出删除模式。"
+    else
+        # 查找与该 IP 相关的类 ID
+        CLASS_ID=$(tc filter show dev "$IFACE" | grep -B 1 "$IP" | grep -o 'flowid 1:[0-9]*' | awk '{print $2}')
+        if [ -n "$CLASS_ID" ]; then
+            echo "❗ 正在删除限速规则（类ID：$CLASS_ID）"
+            tc filter del dev "$IFACE" protocol ip parent 1:0 prio 1 u32 match ip src "$IP" flowid "$CLASS_ID"
+            tc class del dev "$IFACE" classid "$CLASS_ID"
+            echo "✅ 已删除 IP $IP 的限速规则。"
+        else
+            echo "❗ 未找到与 $IP 相关的限速规则。"
+        fi
+    fi
+fi
