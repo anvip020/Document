@@ -13,7 +13,9 @@ if [[ "$ACTION" != "1" && "$ACTION" != "2" && "$ACTION" != "3" ]]; then
   exit 1
 fi
 
-read -p "请输入网卡名称（如 wg04）: " DEV
+wg
+
+read -p "请输入网卡名称（如 wg00）: " DEV
 if [[ -z "$DEV" ]]; then
   echo "❌ 错误：网卡名称不能为空"
   exit 1
@@ -46,7 +48,7 @@ sudo rm -f "$LIMIT_SCRIPT"
 
 # === 操作 1：添加限速 ===
 if [[ "$ACTION" == "1" ]]; then
-  read -p "请输入上行限速值（单位 Mbps，例如 30）: " RATE
+  read -p "请输入上行限速值（单位 Mbps，例如 10）: " RATE
   if ! [[ "$RATE" =~ ^[0-9]+$ ]]; then
     echo "❌ 错误：限速值必须是整数（Mbps）"
     exit 1
