@@ -1,8 +1,8 @@
 #!/bin/bash
-# WireGuard 网卡上行限速管理脚本（支持添加/删除/查看限速）
+# 网卡上行限速管理脚本（支持添加/删除/查看限速）
 # 作者：ChatGPT
 
-echo "=== WireGuard 网卡限速配置工具 ==="
+echo "=== 网卡限速配置工具 ==="
 echo "1. 添加限速"
 echo "2. 删除限速"
 echo "3. 查看当前限速"
@@ -15,7 +15,7 @@ fi
 
 wg
 
-read -p "请输入网卡名称（如 wg00）: " DEV
+read -p "请输入网卡名称（如 wg00/eth0）: " DEV
 if [[ -z "$DEV" ]]; then
   echo "❌ 错误：网卡名称不能为空"
   exit 1
