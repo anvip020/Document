@@ -1,87 +1,82 @@
 #!/bin/bash
 
-# 配置默认网卡
-IFACE="eth0"
-ROOT_QDISC="1:"
+DB="/root/ip_limit.db"
 
-# 添加限速规则
-add_limit() {
-    read -rp "请输入源IP或CIDR（如 192.168.1.10 或 10.0.0.0/24），输入 done 完成: " IP
-    while [ "$IP" != "done" ]; do
-        read -rp "请输入该IP的上传限速（如 1mbit、500kbit），直接输入数字（如 30）表示 30mbit: " RATE
+echo "============================"
+echo "IP 上传限速工具（修复版）"
+echo "============================"
 
-        # 检查输入的速率
+echo "当前网卡："
+ip -o link show | awk -F': ' '{print $2}' | grep -v lo
+echo ""
+
+read -p "请输入网卡: " IFACE
+
+init_tc() {
+    modprobe ifb 2>/dev/null
+
+    tc qdisc del dev "$IFACE" root 2>/dev/null
+    tc qdisc add dev "$IFACE" root handle 1: htb default 999
+}
+
+add_rule() {
+    init_tc
+
+    CLASS=10
+
+    while true; do
+        read -p "请输入IP/CIDR（done结束）: " IP
+        [[ "$IP" == "done" ]] && break
+
+        read -p "限速(Mbps，直接数字): " RATE
+
         if [[ "$RATE" =~ ^[0-9]+$ ]]; then
-            RATE="${RATE}mbit"  # 自动补全单位
+            RATE="${RATE}mbit"
         fi
 
-        # 添加限速规则
-        tc class add dev "$IFACE" parent 1: classid 1:"$((RANDOM % 1000))" htb rate "$RATE"
-        tc filter add dev "$IFACE" parent 1:0 protocol ip prio 1 u32 match ip src "$IP" flowid 1:"$((RANDOM % 1000))"
-        echo "✅ 已为 $IP 设置限速 $RATE"
+        # 删除旧规则
+        tc class del dev "$IFACE" classid 1:$CLASS 2>/dev/null
 
-        read -rp "请输入源IP或CIDR（如 192.168.1.10 或 10.0.0.0/24），输入 done 完成: " IP
+        # 添加 class
+        tc class add dev "$IFACE" parent 1: classid 1:$CLASS htb rate "$RATE"
+
+        # 添加 filter
+        tc filter add dev "$IFACE" protocol ip parent 1: prio 1 u32 match ip src "$IP" flowid 1:$CLASS
+
+        echo "$IP|$RATE|$CLASS" >> "$DB"
+
+        echo "OK: $IP -> $RATE"
+        CLASS=$((CLASS+1))
     done
 }
 
-# 查询限速规则
-query_limit() {
-    read -rp "请输入要查询限速规则的网卡名（如 eth0）: " IFACE
-    echo "正在列出当前的限速规则..."
-    tc filter show dev "$IFACE" 2>/dev/null
+show_rules() {
+    echo "===== 当前规则 ====="
+    cat "$DB" 2>/dev/null || echo "无规则"
 }
 
-# 删除限速规则
-delete_limit() {
-    read -rp "请输入要删除限速规则的网卡名（如 eth0）: " IFACE
-    echo "正在列出当前的限速规则..."
-    tc filter show dev "$IFACE" 2>/dev/null
+delete_rule() {
+    show_rules
+    read -p "删除哪个IP: " IP
 
-    read -rp "请输入要删除的 IP 或 CIDR（例如：10.0.0.3 或 10.0.0.0/24），输入 done 完成: " IP
-    if [ "$IP" == "done" ]; then
-        echo "❗ 操作已完成，退出删除模式。"
-    else
-        # 查找与该 IP 相关的类 ID
-        CLASS_IDS=$(tc filter show dev "$IFACE" | grep -B 1 "$IP" | grep -o 'flowid 1:[0-9]*' | awk '{print $2}')
+    CLASS=$(grep "$IP" "$DB" | cut -d"|" -f3)
 
-        if [ -n "$CLASS_IDS" ]; then
-            # 如果找到了相关的类 ID，则逐一删除
-            for CLASS_ID in $CLASS_IDS; do
-                echo "❗ 正在删除限速规则（类ID：$CLASS_ID）"
-                tc filter del dev "$IFACE" protocol ip parent 1:0 prio 1 u32 match ip src "$IP" flowid "$CLASS_ID"
-                tc class del dev "$IFACE" classid "$CLASS_ID"
-                echo "✅ 已删除 IP $IP 的限速规则（类ID：$CLASS_ID）。"
-            done
-        else
-            echo "❗ 未找到与 $IP 相关的限速规则。"
-        fi
-    fi
+    tc class del dev "$IFACE" classid 1:$CLASS 2>/dev/null
+    tc filter del dev "$IFACE" parent 1: prio 1 u32 match ip src "$IP" 2>/dev/null
+
+    grep -v "$IP" "$DB" > /tmp/db && mv /tmp/db "$DB"
+
+    echo "已删除 $IP"
 }
 
-# 显示操作菜单
-menu() {
-    echo "请选择操作："
-    echo "1) 添加限速规则（支持叠加 + 每IP限速，存在则替换）"
-    echo "2) 查询限速规则"
-    echo "3) 删除限速规则"
-    read -rp "请输入选项（1-3）: " OPTION
+echo ""
+echo "1) 添加"
+echo "2) 查看"
+echo "3) 删除"
+read -p "选择: " opt
 
-    case $OPTION in
-        1)
-            add_limit
-            ;;
-        2)
-            query_limit
-            ;;
-        3)
-            delete_limit
-            ;;
-        *)
-            echo "❗ 无效的选项，请重新选择。"
-            menu
-            ;;
-    esac
-}
-
-# 主函数，进入菜单
-menu
+case $opt in
+    1) add_rule ;;
+    2) show_rules ;;
+    3) delete_rule ;;
+esac
